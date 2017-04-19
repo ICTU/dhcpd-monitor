@@ -2,19 +2,21 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
 var (
-	dhcpdConfigFile string
-	dhcpdLeaseFile  string
-	port            string
+	dhcpdConfigFile = flag.String("dhcpd-config-file", "/etc/dhcpd.conf", "Path to dhcpd configuration file")
+	dhcpdLeaseFile  = flag.String("dhcpd-lease-file", "/etc/dhcpd.leases", "Path to dhcpd leases file")
+	port            = flag.String("port", "80", "Port to bind the service")
 )
 
 func GetStateEndpoint(w http.ResponseWriter, req *http.Request) {
@@ -24,9 +26,9 @@ func GetStateEndpoint(w http.ResponseWriter, req *http.Request) {
 	)
 	cmdName := "dhcpd-pools"
 	cmdArgs := []string{"--config",
-		dhcpdConfigFile,
+		*dhcpdConfigFile,
 		"--leases",
-		dhcpdLeaseFile,
+		*dhcpdLeaseFile,
 		"--format=j"}
 	w.Header().Set("Content-Type", "application/json")
 	if cmdOut, err = exec.Command(cmdName, cmdArgs...).CombinedOutput(); err != nil {
@@ -43,10 +45,17 @@ func GetStateEndpoint(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	dhcpdConfigFile = os.Getenv("DHCPD_CONF_FILE")
-	dhcpdLeaseFile = os.Getenv("DHCPD_LEASE_FILE")
-	port = os.Getenv("PORT")
+	flag.Parse()
+	if _, err := os.Stat(*dhcpdConfigFile); os.IsNotExist(err) {
+		log.Fatalf("DHCPD config not found at: %s", *dhcpdConfigFile)
+		os.Exit(1)
+	}
+	if _, err := os.Stat(*dhcpdLeaseFile); os.IsNotExist(err) {
+		log.Fatalf("DHCPD leases db not found at: %s", *dhcpdLeaseFile)
+		os.Exit(1)
+	}
 	router := mux.NewRouter()
-	router.HandleFunc("/state", GetStateEndpoint).Methods("GET")
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), router))
+	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
+	router.HandleFunc("/v1/api/state", GetStateEndpoint).Methods("GET")
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *port), loggedRouter))
 }

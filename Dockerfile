@@ -5,8 +5,6 @@ ADD dhcpd-pools /bin/dhcpd-pools
 
 ENV PORT 80
 ENV DHCPD_CONF_FILE /etc/dhcpd.conf
-ENV DHCPD_RESERVATION_FILE /etc/dhcpd-reservation.conf
 ENV DHCPD_LEASE_FILE /etc/dhcpd.leases
 
-ENTRYPOINT ["/dhcpd-monitor"]
-
+CMD /dhcpd-monitor --port=$PORT --dhcpd-config-file=$DHCPD_CONF_FILE --dhcpd-lease-file=$DHCPD_LEASE_FILE

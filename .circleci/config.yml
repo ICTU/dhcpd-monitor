@@ -4,6 +4,7 @@ jobs:
   build_and_push_tag:
     machine: true
     steps:
+      - checkout
       - run:
           shell: /bin/bash
           command: |
@@ -12,20 +13,21 @@ jobs:
             docker tag ictu/dhcpd-monitor ictu/dhcpd-monitor:${CIRCLE_TAG}
             MAJOR_VERSION=${CIRCLE_TAG/.*}; docker tag ictu/dhcpd-monitor:${CIRCLE_TAG} ictu/dhcpd-monitor:${MAJOR_VERSION}
             MINOR_VERSION=${CIRCLE_TAG%.*}; docker tag ictu/dhcpd-monitor:${CIRCLE_TAG} ictu/dhcpd-monitor:${MINOR_VERSION}
-            docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker push ictu/dhcpd-monitor
             docker push ictu/dhcpd-monitor:${CIRCLE_TAG}
             docker push ictu/dhcpd-monitor:${MINOR_VERSION}
             docker push ictu/dhcpd-monitor:${MAJOR_VERSION}
-    build_and_push_master:
+  build_and_push_master:
     machine: true
     steps:
+      - checkout
       - run:
           shell: /bin/bash
           command: |
             docker run --rm -v $(pwd):/usr/src/myapp -w /usr/src/myapp -e CGO_ENABLED=0 -e GOOS=linux -e GOARCH=amd64 golang:1.8 bash -c "go get -d -v; go build -a --installsuffix cgo -v -o dhcpd-monitor"
             docker build --no-cache=true -t ictu/dhcpd-monitor .
-            docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker push ictu/dhcpd-monitor
 
 workflows:
